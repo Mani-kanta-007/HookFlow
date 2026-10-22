@@ -44,6 +44,12 @@ public class Delivery {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column
+    private Instant nextAttemptAt;
+
+    @Column(length = 2000)
+    private String lastError;
+
     protected Delivery() {
     }
 
@@ -84,5 +90,9 @@ public class Delivery {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+    public void recordAttempt(Status result) {
+        this.attemptCount++;
+        this.status = result;   
     }
 }

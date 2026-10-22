@@ -47,5 +47,14 @@ public class DeliveryService {
         deliveryRepository.saveAll(deliveries);
 
         return deliveries.size();
-    }
+        }
+        @Transactional
+        public void recordAttempt(UUID deliveryId, Delivery.Status result) {
+                Delivery delivery = deliveryRepository.findById(deliveryId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Delivery not found: " + deliveryId));
+
+                delivery.recordAttempt(result);
+        }
 }
