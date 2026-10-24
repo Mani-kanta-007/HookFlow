@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +33,9 @@ public class DeliveryWorker {
 
     public Map<String, Object> processPendingDeliveries() {
         List<Delivery> deliveries =
-                deliveryRepository.findByStatus(Delivery.Status.PENDING);
+        deliveryRepository.findEligibleDeliveries(
+                Delivery.Status.PENDING,
+                Instant.now());
 
         int delivered = 0;
         int failed = 0;
@@ -57,25 +60,20 @@ public class DeliveryWorker {
                         .retrieve()
                         .toBodilessEntity();
 
-                deliveryService.recordAttempt(
-                        delivery.getId(), Delivery.Status.DELIVERED);
-
-                delivered++;
-
             } catch (Exception exception) {
-                try {
-                    deliveryService.recordAttempt(
-                            delivery.getId(), Delivery.Status.FAILED);
-                } catch (Exception statusException) {
-                    exception.addSuppressed(statusException);
-                }
+                deliveryService.recordFailure(
+                        delivery.getId(),
+                        exception.getMessage() != null
+                                ? exception.getMessage()
+                                : exception.getClass().getSimpleName()
+                );
 
                 failed++;
-
-                System.err.println(
-                        "Delivery failed: " + delivery.getId()
-                                + " - " + exception.getMessage());
+                continue;
             }
+
+            deliveryService.recordSuccess(delivery.getId());
+            delivered++;
         }
 
         return Map.of(

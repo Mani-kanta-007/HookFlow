@@ -16,6 +16,10 @@ import java.util.UUID;
 @Service
 public class DeliveryService {
 
+        private static final int MAX_ATTEMPTS = 5;
+        private static final long INITIAL_DELAY_SECONDS = 5;
+        private static final long MAX_DELAY_SECONDS = 60;
+
     private final SubscriptionRepository subscriptionRepository;
     private final DeliveryRepository deliveryRepository;
 
@@ -48,13 +52,37 @@ public class DeliveryService {
 
         return deliveries.size();
         }
+
         @Transactional
-        public void recordAttempt(UUID deliveryId, Delivery.Status result) {
+        public void recordSuccess(UUID deliveryId) {
                 Delivery delivery = deliveryRepository.findById(deliveryId)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
                                         "Delivery not found: " + deliveryId));
 
-                delivery.recordAttempt(result);
+                delivery.recordSuccess();
         }
+
+        @Transactional
+        public void recordFailure(UUID deliveryId, String error) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Delivery not found: " + deliveryId));
+
+        int nextAttemptNumber = delivery.getAttemptCount() + 1;
+        boolean permanentlyFailed = nextAttemptNumber >= MAX_ATTEMPTS;
+
+        long delaySeconds = Math.min(
+                INITIAL_DELAY_SECONDS * (1L << (nextAttemptNumber - 1)),
+                MAX_DELAY_SECONDS
+        );
+
+        Instant retryAt = permanentlyFailed
+                ? null
+                : Instant.now().plusSeconds(delaySeconds);
+
+        delivery.recordFailure(error, retryAt, permanentlyFailed);
+        }
+
 }

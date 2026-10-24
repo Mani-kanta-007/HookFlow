@@ -91,8 +91,32 @@ public class Delivery {
     public Instant getCreatedAt() {
         return createdAt;
     }
-    public void recordAttempt(Status result) {
+    
+
+    public Instant getNextAttemptAt() {
+        return nextAttemptAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+
+    public void recordSuccess() {
         this.attemptCount++;
-        this.status = result;   
+        this.status = Status.DELIVERED;
+        this.nextAttemptAt = null;
+        this.lastError = null;
+    }
+
+    public void recordFailure(
+            String error,
+            Instant retryAt,
+            boolean permanentlyFailed) {
+
+        this.attemptCount++;
+        this.status = permanentlyFailed ? Status.FAILED : Status.PENDING;
+        this.nextAttemptAt = permanentlyFailed ? null : retryAt;
+        this.lastError = error;
     }
 }
